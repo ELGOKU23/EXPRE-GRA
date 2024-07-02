@@ -136,7 +136,7 @@ def crear_app():
             file_path = 'static/syntax_tree'
             try:
                 self.graph.render(file_path, format='png', cleanup=False)
-                with open(f"{file_path}.png", "rb") as image_file:
+                with open(f"{file_path}.png", "rb") as image_file):
                     base64_image = base64.b64encode(image_file.read()).decode('utf-8')
                 print(f"File {file_path}.png created successfully.")
                 return base64_image
