@@ -1,9 +1,10 @@
- services:
+services:
   - type: web
-    name: EXPRE-GRA 
+    name:  EXPRE-GRA  # Reemplaza con el nombre de tu aplicación
     env: python
     buildCommand: ./render-build.sh
     startCommand: gunicorn main:app
     envVars:
       - key: PATH
-        value: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$HOME/miniconda3/bin
+        value: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/local/graphviz/bin:/usr/local/graphviz/sbin
+
