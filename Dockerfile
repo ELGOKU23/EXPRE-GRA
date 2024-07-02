@@ -14,8 +14,12 @@ COPY . .
 # Instala las dependencias de Python
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Agrega graphviz al PATH
+ENV PATH="/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/graphviz/bin:${PATH}"
+
 # Expone el puerto que usará la aplicación
 EXPOSE 5000
 
 # Define el comando de inicio
 CMD ["gunicorn", "--bind", "0.0.0.0:5000", "app:crear_app()"]
+
