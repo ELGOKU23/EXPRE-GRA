@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: EXPRE-GRA
+    name: EXPRE-GRA 
     env: python
     buildCommand: ./render-build.sh
     startCommand: gunicorn main:app
