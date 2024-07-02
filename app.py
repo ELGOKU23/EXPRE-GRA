@@ -26,7 +26,7 @@ def crear_app():
             while self.current_token is not None:
                 if self.current_token.isdigit():
                     tokens.append(('NUM', self.current_token))
-                elif self.current_token.isalpha():
+                elif self.current_token isalpha():
                     tokens.append(('ID', self.current_token))
                 elif self.current_token in '+-*/()':
                     tokens.append(('SYM', self.current_token))
