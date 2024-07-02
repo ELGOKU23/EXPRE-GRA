@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
-import pygraphviz as pgv
+import pydot
 import base64
 import os
 
@@ -38,7 +38,7 @@ def crear_app():
             self.tokens = tokens
             self.position = 0
             self.current_token = self.tokens[self.position] if self.tokens else None
-            self.graph = pgv.AGraph(strict=False, directed=True)
+            self.graph = pydot.Dot(graph_type='digraph')
 
         def advance(self):
             self.position += 1
@@ -56,9 +56,9 @@ def crear_app():
 
         def parse_expr(self, parent=None):
             expr_node = f'expr{self.position}'
-            self.graph.add_node(expr_node, label='expr')
+            self.graph.add_node(pydot.Node(expr_node, label='expr'))
             if parent:
-                self.graph.add_edge(parent, expr_node)
+                self.graph.add_edge(pydot.Edge(parent, expr_node))
 
             term_node = self.parse_term(expr_node)
             self.parse_z(expr_node)
@@ -68,8 +68,8 @@ def crear_app():
         def parse_z(self, parent=None):
             if self.current_token and self.current_token[1] in ['+', '-']:
                 op_node = f'op{self.position}'
-                self.graph.add_node(op_node, label=self.current_token[1])
-                self.graph.add_edge(parent, op_node)
+                self.graph.add_node(pydot.Node(op_node, label=self.current_token[1]))
+                self.graph.add_edge(pydot.Edge(parent, op_node))
                 self.advance()
 
                 expr_node = self.parse_expr(parent)
@@ -77,9 +77,9 @@ def crear_app():
 
         def parse_term(self, parent=None):
             term_node = f'term{self.position}'
-            self.graph.add_node(term_node, label='term')
+            self.graph.add_node(pydot.Node(term_node, label='term'))
             if parent:
-                self.graph.add_edge(parent, term_node)
+                self.graph.add_edge(pydot.Edge(parent, term_node))
 
             factor_node = self.parse_factor(term_node)
             self.parse_x(term_node)
@@ -89,8 +89,8 @@ def crear_app():
         def parse_x(self, parent=None):
             if self.current_token and self.current_token[1] in ['*', '/']:
                 op_node = f'op{self.position}'
-                self.graph.add_node(op_node, label=self.current_token[1])
-                self.graph.add_edge(parent, op_node)
+                self.graph.add_node(pydot.Node(op_node, label=self.current_token[1]))
+                self.graph.add_edge(pydot.Edge(parent, op_node))
                 self.advance()
 
                 term_node = self.parse_term(parent)
@@ -98,26 +98,26 @@ def crear_app():
 
         def parse_factor(self, parent=None):
             factor_node = f'factor{self.position}'
-            self.graph.add_node(factor_node, label='factor')
+            self.graph.add_node(pydot.Node(factor_node, label='factor'))
             if parent:
-                self.graph.add_edge(parent, factor_node)
+                self.graph.add_edge(pydot.Edge(parent, factor_node))
 
             if self.current_token and self.current_token[1] == '(':
                 paren_open_node = f'paren_open{self.position}'
-                self.graph.add_node(paren_open_node, label='(')
-                self.graph.add_edge(factor_node, paren_open_node)
+                self.graph.add_node(pydot.Node(paren_open_node, label='('))
+                self.graph.add_edge(pydot.Edge(factor_node, paren_open_node))
                 self.advance()
 
                 expr_node = self.parse_expr(factor_node)
 
                 self.expect('SYM', ')')
                 paren_close_node = f'paren_close{self.position}'
-                self.graph.add_node(paren_close_node, label=')')
-                self.graph.add_edge(factor_node, paren_close_node)
+                self.graph.add_node(pydot.Node(paren_close_node, label=')'))
+                self.graph.add_edge(pydot.Edge(factor_node, paren_close_node))
             elif self.current_token and self.current_token[0] == 'NUM':
                 num_node = f'num{self.position}'
-                self.graph.add_node(num_node, label=self.current_token[1])
-                self.graph.add_edge(factor_node, num_node)
+                self.graph.add_node(pydot.Node(num_node, label=self.current_token[1]))
+                self.graph.add_edge(pydot.Edge(factor_node, num_node))
                 self.advance()
             else:
                 raise Exception("Syntax error: expected '(', number or identifier")
@@ -135,7 +135,7 @@ def crear_app():
                 os.makedirs('static')
             file_path = 'static/syntax_tree.png'
             try:
-                self.graph.draw(file_path, prog='dot', format='png')
+                self.graph.write_png(file_path)
                 with open(file_path, "rb") as image_file:
                     base64_image = base64.b64encode(image_file.read()).decode('utf-8')
                 print(f"File {file_path} created successfully.")
