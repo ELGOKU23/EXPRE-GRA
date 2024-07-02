@@ -1,7 +1,7 @@
 # Usa una imagen base de Python
 FROM python:3.11-slim
 
-# Instala las dependencias del sistema necesarias para pygraphviz
+# Instala Graphviz y sus dependencias
 RUN apt-get update && apt-get install -y graphviz libgraphviz-dev pkg-config
 
 # Establece el directorio de trabajo
