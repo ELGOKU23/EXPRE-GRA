@@ -38,7 +38,6 @@ class Parser:
         self.position = 0
         self.current_token = self.tokens[self.position] if self.tokens else None
         self.graph = Digraph(comment='Syntax Tree', engine='dot')
-        # Asegúrate de que graphviz está utilizando el path correcto
         dot_path = os.popen('which dot').read().strip()
         os.environ["PATH"] += os.pathsep + os.path.dirname(dot_path)
         print(f"Dot path: {dot_path}")
@@ -61,10 +60,8 @@ class Parser:
         self.graph.node(expr_node, 'expr')
         if parent:
             self.graph.edge(parent, expr_node)
-
         term_node = self.parse_term(expr_node)
         self.parse_z(expr_node)
-
         return expr_node
 
     def parse_z(self, parent=None):
@@ -73,7 +70,6 @@ class Parser:
             self.graph.node(op_node, self.current_token[1])
             self.graph.edge(parent, op_node)
             self.advance()
-
             expr_node = self.parse_expr(parent)
         return parent
 
@@ -82,10 +78,8 @@ class Parser:
         self.graph.node(term_node, 'term')
         if parent:
             self.graph.edge(parent, term_node)
-
         factor_node = self.parse_factor(term_node)
         self.parse_x(term_node)
-
         return term_node
 
     def parse_x(self, parent=None):
@@ -94,7 +88,6 @@ class Parser:
             self.graph.node(op_node, self.current_token[1])
             self.graph.edge(parent, op_node)
             self.advance()
-
             term_node = self.parse_term(parent)
         return parent
 
@@ -103,15 +96,12 @@ class Parser:
         self.graph.node(factor_node, 'factor')
         if parent:
             self.graph.edge(parent, factor_node)
-
         if self.current_token and self.current_token[1] == '(':
             paren_open_node = f'paren_open{self.position}'
             self.graph.node(paren_open_node, '(')
             self.graph.edge(factor_node, paren_open_node)
             self.advance()
-
             expr_node = self.parse_expr(factor_node)
-
             self.expect('SYM', ')')
             paren_close_node = f'paren_close{self.position}'
             self.graph.node(paren_close_node, ')')
@@ -123,7 +113,6 @@ class Parser:
             self.advance()
         else:
             raise Exception("Syntax error: expected '(', number or identifier")
-
         return factor_node
 
     def draw_syntax_tree(self, expression):
@@ -154,7 +143,7 @@ def index():
 def generate_syntax_tree():
     data = request.json
     expression = data['expression']
-    print(f"Received expression from client: {expression}")  # Debug message
+    print(f"Received expression from client: {expression}")
     parser = Parser([])
     base64_image = parser.draw_syntax_tree(expression)
     if base64_image:
