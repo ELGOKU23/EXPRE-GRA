@@ -2,6 +2,9 @@ const symbolTable = JSON.parse(localStorage.getItem('symbolTable')) || {};
 let evaluatedExpressions = JSON.parse(localStorage.getItem('evaluatedExpressions')) || []; // Almacenará una copia de las expresiones evaluadas
 let lastGeneratedTree = localStorage.getItem('lastGeneratedTree') || ''; // Para almacenar la última imagen generada
 
+let executed = false; // Variable para verificar si se ha ejecutado
+let tokensParsed = false; // Variable para verificar si se han mostrado los tokens
+
 // Clase Scanner para tokenización
 class Scanner {
   constructor(code) {
@@ -101,6 +104,7 @@ class Parser {
     this.currentToken = null;
     this.index = 0;
     this.errorFlag = false;
+    this.ast = null;
   }
 
   scanner() {
@@ -114,67 +118,86 @@ class Parser {
 
   main() {
     this.scanner();
-    this.expr();
+    this.ast = this.expr();
     if (this.currentToken.type === 'EOF' && !this.errorFlag) {
       console.log("Cadena válida");
     } else {
       console.log("Error en la cadena");
     }
+    return this.ast;
   }
 
   expr() {
-    this.term();
-    this.z();
+    const termNode = this.term();
+    return this.z(termNode);
   }
 
-  z() {
+  z(leftNode) {
     if (this.currentToken.type === 'OPERADOR' && ['+', '-'].includes(this.currentToken.value)) {
+      const operator = this.currentToken.value;
       this.scanner();
-      this.expr();
+      const rightNode = this.expr();
+      return { type: 'binOp', operator: operator, left: leftNode, right: rightNode };
     } else if (this.currentToken.type === 'SIMBOLO' && this.currentToken.value === ')') {
       // epsilon transition
+      return leftNode;
     } else if (this.currentToken.type === 'EOF') {
       // epsilon transition
+      return leftNode;
     } else {
       this.error();
+      return null;
     }
   }
 
   term() {
-    this.factor();
-    this.x();
+    const factorNode = this.factor();
+    return this.x(factorNode);
   }
 
-  x() {
+  x(leftNode) {
     if (this.currentToken.type === 'OPERADOR' && ['*', '/'].includes(this.currentToken.value)) {
+      const operator = this.currentToken.value;
       this.scanner();
-      this.term();
+      const rightNode = this.term();
+      return { type: 'binOp', operator: operator, left: leftNode, right: rightNode };
     } else if (this.currentToken.type === 'OPERADOR' && ['+', '-'].includes(this.currentToken.value)) {
       // epsilon transition
+      return leftNode;
     } else if (this.currentToken.type === 'SIMBOLO' && this.currentToken.value === ')') {
       // epsilon transition
+      return leftNode;
     } else if (this.currentToken.type === 'EOF') {
       // epsilon transition
+      return leftNode;
     } else {
       this.error();
+      return null;
     }
   }
 
   factor() {
     if (this.currentToken.type === 'SIMBOLO' && this.currentToken.value === '(') {
       this.scanner();
-      this.expr();
+      const exprNode = this.expr();
       if (this.currentToken.type === 'SIMBOLO' && this.currentToken.value === ')') {
         this.scanner();
+        return exprNode;
       } else {
         this.error();
+        return null;
       }
     } else if (this.currentToken.type === 'NUM') {
+      const numNode = { type: 'num', value: parseFloat(this.currentToken.value) };
       this.scanner();
+      return numNode;
     } else if (this.currentToken.type === 'ID') {
+      const varNode = { type: 'var', name: this.currentToken.value };
       this.scanner();
+      return varNode;
     } else {
       this.error();
+      return null;
     }
   }
 
@@ -187,10 +210,11 @@ class Parser {
 // Función para analizar expresiones aritméticas
 function parseExpression(tokens) {
   const parser = new Parser(tokens);
-  parser.main();
+  const ast = parser.main();
   if (parser.errorFlag) {
     throw new Error("Expresión inválida.");
   }
+  return ast;
 }
 
 function scanExpression(expression) {
@@ -205,7 +229,8 @@ function scanExpression(expression) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  const evaluateButton = document.getElementById('evaluateButton');
+  const viewValuesButton = document.getElementById('viewValuesButton');
+  const executeButton = document.getElementById('executeButton');
   const showTokensButton = document.getElementById('showTokensButton');
   const generateTreeButton = document.getElementById('generateTreeButton');
   const showTreeButton = document.getElementById('showTreeButton');
@@ -217,24 +242,44 @@ document.addEventListener('DOMContentLoaded', () => {
   showTokens();
   showGeneratedTree(); // Mostrar el último árbol generado si existe
 
-  evaluateButton.addEventListener('click', (event) => {
+  viewValuesButton.addEventListener('click', (event) => {
+    event.preventDefault();
+    if (executed) {
+      evaluateExpression();
+    } else {
+      alert("Presione el botón 'Ejecutar' antes de ver los valores guardados.");
+    }
+  });
+
+  executeButton.addEventListener('click', (event) => {
     event.preventDefault();
     evaluateExpression();
+    executeExpression();
+    executed = true; // Marcar que se ha ejecutado
   });
 
   showTokensButton.addEventListener('click', (event) => {
     event.preventDefault();
     showTokens();
+    tokensParsed = true; // Marcar que se han mostrado los tokens
   });
 
   generateTreeButton.addEventListener('click', (event) => {
     event.preventDefault();
-    generateTreeFromCopy(event);
+    if (executed) {
+      generateTreeFromCopy(event);
+    } else {
+      alert("Presione el botón 'Ejecutar' antes de generar el árbol.");
+    }
   });
 
   showTreeButton.addEventListener('click', (event) => {
     event.preventDefault();
-    showGeneratedTree();
+    if (executed) {
+      showGeneratedTree();
+    } else {
+      alert("Presione el botón 'Ejecutar' antes de mostrar el árbol.");
+    }
   });
 
   clearStorageButton.addEventListener('click', (event) => {
@@ -249,7 +294,7 @@ function evaluateExpression() {
 
   // Guardar la expresión en localStorage
   localStorage.setItem('lastExpression', expression);
-
+  
   // Limpiar los resultados previos
   resultElement.innerHTML = '';
   evaluatedExpressions = []; // Limpiar las expresiones evaluadas previamente
@@ -262,20 +307,21 @@ function evaluateExpression() {
   try {
     expressions.forEach(expr => {
       expr = expr.trim();
-      if (expr) {
-        const match = expr.match(/([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*(.+)/);
+      if (expr && !expr.startsWith('cout<<')) { // Omitir expresiones cout
+        const match = expr.match(/([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*(.+)/i);
         if (match) {
           const varName = match[1];
           const exprValue = match[2];
           const tokens = scanExpression(exprValue);
-          parseExpression(tokens);
-          const result = evalTokens(tokens);
+          const ast = parseExpression(tokens);
+          const result = evaluarAST(ast);
           symbolTable[varName] = result;
-          evaluatedExpressions.push(exprValue); // Guardar una copia de la expresión evaluada
+          evaluatedExpressions.push(exprValue); // Guardar solo la expresión
         } else {
           const tokens = scanExpression(expr);
-          parseExpression(tokens);
-          evaluatedExpressions.push(expr); // Guardar una copia de la expresión
+          const ast = parseExpression(tokens);
+          evaluarAST(ast);
+          evaluatedExpressions.push(expr); // Guardar solo la expresión
         }
       }
     });
@@ -290,9 +336,55 @@ function evaluateExpression() {
   }
 }
 
+function executeExpression() {
+  const expression = document.getElementById('expression').value.trim();
+  const resultElement = document.getElementById('result');
+
+  // Dividir las expresiones por ';' o saltos de línea
+  const expressions = expression.split(/;|\n/);
+
+  try {
+    let output = '';
+
+    expressions.forEach(expr => {
+      expr = expr.trim();
+      if (expr.startsWith('cout<<')) {
+        const exprToEvaluate = expr.substring(6).trim();
+        const tokens = scanExpression(exprToEvaluate);
+        const ast = parseExpression(tokens);
+        const result = evaluarAST(ast);
+        output += `${result}\n`;
+      } else if (expr) {
+        const match = expr.match(/([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*(.+)/i);
+        if (match) {
+          const varName = match[1];
+          const exprValue = match[2];
+          const tokens = scanExpression(exprValue);
+          const ast = parseExpression(tokens);
+          const result = evaluarAST(ast);
+          symbolTable[varName] = result;
+        } else {
+          const tokens = scanExpression(expr);
+          const ast = parseExpression(tokens);
+          evaluarAST(ast);
+        }
+      }
+    });
+
+    if (output !== '') {
+      resultElement.innerText = output.trim();
+    } else {
+      resultElement.innerText = 'No se encontró ninguna expresión cout<< para ejecutar.';
+    }
+  } catch (error) {
+    resultElement.innerText = `Error: ${error.message}`;
+  }
+}
+
 function generateTreeFromCopy(event) {
   event.preventDefault(); // Asegura que no se recargue la página al generar el árbol
   const lastExpression = evaluatedExpressions[evaluatedExpressions.length - 1]; // Obtener la última expresión evaluada
+  console.log("Last evaluated expression:", lastExpression); // Debugging line
   if (lastExpression) {
     generateSyntaxTree(lastExpression);
   } else {
@@ -303,8 +395,9 @@ function generateTreeFromCopy(event) {
 }
 
 function generateSyntaxTree(expression) {
+  console.log("Expression sent to server:", expression); // Debugging line
   const xhr = new XMLHttpRequest();
-  xhr.open('POST', '/generate-syntax-tree', true);  // Usar ruta relativa
+  xhr.open('POST', 'http://127.0.0.1:5000/generate-syntax-tree', true);
   xhr.setRequestHeader('Content-Type', 'application/json');
   xhr.onreadystatechange = function () {
     if (xhr.readyState === 4 && xhr.status === 200) {
@@ -332,18 +425,36 @@ function showGeneratedTree() {
   }
 }
 
-function evalTokens(tokens) {
-  const expr = tokens.map(token => {
-    if (token.type === 'ID') {
-      if (symbolTable.hasOwnProperty(token.value)) {
-        return symbolTable[token.value];
-      } else {
-        throw new Error(`Variable ${token.value} no definida`);
-      }
+function evaluarAST(nodo) {
+  if (nodo.type === 'num') {
+    return nodo.value;
+  } else if (nodo.type === 'var') {
+    if (symbolTable.hasOwnProperty(nodo.name)) {
+      return symbolTable[nodo.name];
+    } else {
+      throw new Error(`Variable ${nodo.name} no definida`);
     }
-    return token.value;
-  }).join(' ');
-  return eval(expr);
+  } else if (nodo.type === 'binOp') {
+    const leftValue = evaluarAST(nodo.left);
+    const rightValue = evaluarAST(nodo.right);
+    switch (nodo.operator) {
+      case '+':
+        return leftValue + rightValue;
+      case '-':
+        return leftValue - rightValue;
+      case '*':
+        return leftValue * rightValue;
+      case '/':
+        if (rightValue === 0) {
+          throw new Error("División por cero");
+        }
+        return leftValue / rightValue;
+      default:
+        throw new Error(`Operador desconocido: ${nodo.operator}`);
+    }
+  } else {
+    throw new Error(`Tipo de nodo desconocido: ${nodo.type}`);
+  }
 }
 
 function updateResults() {
